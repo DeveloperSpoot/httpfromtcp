@@ -12,7 +12,7 @@ func main(){
 	ln, netErr := net.Listen("tcp", ":42069")
 
 	if netErr != nil {
-		fmt.Printf("An error occured while attempting to start TCP: %w", netErr)
+		log.Fatalf("An error occured while attempting to start TCP: %s\n", netErr.Error())
 		return
 	}
 
@@ -21,7 +21,7 @@ func main(){
 	for {
 		conn, conErr := ln.Accept()
 		if conErr != nil {
-			fmt.Printf("An error occured while attempting to accept connection: %w", conErr)
+			log.Fatalf("An error occured while attempting to accept connection: %s\n", conErr.Error())
 			break
 		}
 
@@ -53,7 +53,7 @@ func getLinesChannel(c net.Conn) <-chan string {
 			if readErr != nil {
 				if errors.Is(readErr, io.EOF) {return}
 
-				fmt.Println("An Error Occured While Reading From Connection: %w", readErr)
+				log.Fatalf("An Error Occured While Reading From Connection: %s\n", readErr.Error())
 				break
 			}
 			parts := []string{}
