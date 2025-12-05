@@ -51,7 +51,10 @@ func getLinesChannel(c net.Conn) <-chan string {
 			n, readErr := c.Read(read)
 
 			if readErr != nil {
-				if errors.Is(readErr, io.EOF) {return}
+				if errors.Is(readErr, io.EOF) {
+					if currentLine != "" { ch <- currentLine}
+					return
+				}
 
 				log.Fatalf("An Error Occured While Reading From Connection: %s\n", readErr.Error())
 				break
@@ -71,8 +74,9 @@ func getLinesChannel(c net.Conn) <-chan string {
 				}	 
 
 				currentLine += part
-			}
+			}	
 		}
+
 	}()
 
 	return ch
