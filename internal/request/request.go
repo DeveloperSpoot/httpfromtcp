@@ -3,6 +3,7 @@ package request
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -15,41 +16,103 @@ type RequestLine struct {
 
 type Request struct {
 	RequestLine RequestLine
+	ParserState int
 }
 
-const crlf = "\r\n"
+const (
+	requestInialized int = iota
+	requestDone
+)
+
+const bufferSize int = 8
+const crlf string = "\r\n"
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
+	buff := make([]byte, bufferSize, bufferSize)
+	readToIndex := 0
+
 	request := new(Request)
 
-	bytes, readErr := io.ReadAll(reader)
-	if readErr != nil {
-		return nil, errors.New("Problem reading from reader: " + readErr.Error())
-	}
+	request.ParserState = requestInialized
 
-	rl, rlErr := parseRequestLine(bytes)
-	if rlErr != nil {
-		return nil, rlErr
+	for request.ParserState != requestDone {
+
+		if readToIndex >= len(buff) {
+			newBuff := make([]byte, len(buff)*2)
+			copy(newBuff, buff)
+			buff = newBuff
+		}
+
+		bytesRead, readErr := reader.Read(buff[readToIndex:])
+
+		if bytesRead == 0 && errors.Is(readErr, io.EOF) {
+			request.ParserState = requestDone
+			break
+		}
+
+		readToIndex += bytesRead
+
+		parsed, err := request.parse(buff[:readToIndex])
+		if err != nil {
+			return nil, errors.New("Error occured while parsing: " + err.Error())
+		}
+		copy(buff, buff[parsed:])
+
+		readToIndex -= parsed
 	}
-	request.RequestLine = *rl
 
 	return request, nil
 }
 
-func parseRequestLine(data []byte) (*RequestLine, error) {
+func (request *Request) parse(data []byte) (int, error) {
+	if request.ParserState == requestDone {
+		return 0, errors.New("Attetmped to parse request that is done.")
+	}
+
+	if request.ParserState != requestInialized {
+		return 0, errors.New("Attetmped to parse request at an unknown state")
+	}
+
+	fmt.Println("============== parse =============")
+	fmt.Println(string(data))
+
+	idx, requestLine, err := parseRequestLine(data)
+
+	if err == nil && idx == 0 && requestLine == nil {
+		fmt.Println("<<<<< RETURNING >>>>>")
+		return 0, nil
+	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	request.RequestLine = *requestLine
+	request.ParserState = requestDone
+
+	return 0, nil
+}
+
+func parseRequestLine(data []byte) (int, *RequestLine, error) {
 	idx := bytes.Index(data, []byte(crlf))
+
+	// -1 indicates that bytes passed do not contain all of the request-line,
+	// so it returns and trys again on the next call. Once it has all of the request-line, it'll parse.
 	if idx == -1 {
-		return nil, errors.New("No CRLF found in request-line.")
+		return 0, nil, nil
 	}
 
 	requestLineText := string(data[:idx])
+
+	fmt.Println(requestLineText)
+
 	requestLine, err := requestLineFromString(requestLineText)
 
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 
-	return requestLine, nil
+	return len(data[:idx]) + 1, requestLine, nil
 }
 
 func requestLineFromString(rl string) (*RequestLine, error) {
@@ -86,6 +149,8 @@ func requestLineFromString(rl string) (*RequestLine, error) {
 	if httpVersion != "1.1" {
 		return nil, errors.New("Invalid or unsupported HTTP version: " + httpVersion)
 	}
+
+	fmt.Println(method)
 
 	return &RequestLine{Method: method, RequestTarget: requestTarget, HttpVersion: httpVersion}, nil
 }
