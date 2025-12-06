@@ -34,7 +34,9 @@ func parseRequestLine(r string) (*RequestLine, error) {
 	requestLine.Method = rlParts[0]
 	requestLine.RequestTarget = rlParts[1]
 
-	requestLine.HttpVersion = strings.Split(rlParts[2], "/")[1]
+	httpParts := strings.Split(rlParts[2], "/")
+
+	requestLine.HttpVersion = httpParts[1]
 
 	if strings.ToUpper(requestLine.Method) != requestLine.Method {
 		return nil, errors.New("Invalid method: " + requestLine.Method)
@@ -42,6 +44,14 @@ func parseRequestLine(r string) (*RequestLine, error) {
 
 	if requestLine.Method != "POST" && requestLine.Method != "GET" {
 		return nil, errors.New("Unspported method: " + requestLine.Method)
+	}
+
+	if strings.Contains(requestLine.RequestTarget, "/") == false {
+		return nil, errors.New("Malformed start-line: " + requestLine.RequestTarget)
+	}
+
+	if httpParts[0] != "HTTP" {
+		return nil, errors.New("Invalid Protocol: " + httpParts[0])
 	}
 
 	if requestLine.HttpVersion != "1.1" {
