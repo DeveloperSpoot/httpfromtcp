@@ -73,13 +73,10 @@ func (request *Request) parse(data []byte) (int, error) {
 		return 0, errors.New("Attetmped to parse request at an unknown state")
 	}
 
-	fmt.Println("============== parse =============")
-	fmt.Println(string(data))
-
 	idx, requestLine, err := parseRequestLine(data)
 
 	if err == nil && idx == 0 && requestLine == nil {
-		fmt.Println("<<<<< RETURNING >>>>>")
+
 		return 0, nil
 	}
 
