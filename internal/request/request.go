@@ -3,7 +3,6 @@ package request
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 )
@@ -101,8 +100,6 @@ func parseRequestLine(data []byte) (int, *RequestLine, error) {
 
 	requestLineText := string(data[:idx])
 
-	fmt.Println(requestLineText)
-
 	requestLine, err := requestLineFromString(requestLineText)
 
 	if err != nil {
@@ -146,8 +143,6 @@ func requestLineFromString(rl string) (*RequestLine, error) {
 	if httpVersion != "1.1" {
 		return nil, errors.New("Invalid or unsupported HTTP version: " + httpVersion)
 	}
-
-	fmt.Println(method)
 
 	return &RequestLine{Method: method, RequestTarget: requestTarget, HttpVersion: httpVersion}, nil
 }

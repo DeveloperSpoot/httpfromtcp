@@ -32,9 +32,6 @@ func main() {
 		}
 
 		fmt.Printf("Request line:\n- Method: %v\n- Target: %v\n- Version: %v\n", req.RequestLine.Method, req.RequestLine.RequestTarget, req.RequestLine.HttpVersion)
-
-		log.Println("===>>> Connection Closed <<<===")
-
 	}
 
 }
