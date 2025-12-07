@@ -51,7 +51,12 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	}
 
 	fieldValue = strings.TrimSpace(fieldValue)
-	h[fieldName] = fieldValue
+
+	if h[fieldName] != "" {
+		h[fieldName] = h[fieldName] + ", " + fieldValue
+	} else {
+		h[fieldName] = fieldValue
+	}
 
 	//WARN: Boot.Dev has this set not to include the last two bytes or the last crlf. I included it as it's techincally bytes consumed.
 	return len(data), false, nil

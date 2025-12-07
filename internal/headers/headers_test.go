@@ -18,6 +18,17 @@ func TestHeadersParse(t *testing.T) {
 	assert.Equal(t, 25, n)
 	assert.False(t, done)
 
+	// Test: Valid single header with multiple values
+	headers = make(Headers)
+	data = []byte("snacks: Apple\r\n\r\n")
+	headers.Parse(data)
+	data = []byte("snacks: Chips\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	require.NotNil(t, headers)
+	assert.Equal(t, "Apple, Chips", headers["snacks"])
+	assert.False(t, done)
+
 	// Test: Invalid spacing header
 	headers = make(Headers)
 	data = []byte("       Host : localhost:42069       \r\n\r\n")
