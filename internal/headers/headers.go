@@ -3,7 +3,6 @@ package headers
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -30,7 +29,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 	idxColon := bytes.Index(data, []byte(":"))
 
-	fieldName := string(data[:idxColon])
+	fieldName := strings.ToLower(string(data[:idxColon]))
 
 	fieldValue := string(data[1+idxColon:])
 
@@ -41,9 +40,30 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 0, false, errors.New("Invalid spacing header; specifcally spacing in the field name")
 	}
 
+	fieldName = strings.TrimSpace(fieldName)
+
+	if len(fieldName) == 0 {
+		return 0, false, errors.New("Invalid Header Length.")
+	}
+
+	if isValidName(fieldName) == false {
+		return 0, false, errors.New("Invalid Header Field Name; Field Name Contains Invalid Character.")
+	}
+
 	fieldValue = strings.TrimSpace(fieldValue)
 	h[fieldName] = fieldValue
 
 	//WARN: Boot.Dev has this set not to include the last two bytes or the last crlf. I included it as it's techincally bytes consumed.
 	return len(data), false, nil
+}
+
+func isValidName(s string) bool {
+	for _, r := range s {
+		if strings.ContainsAny(string(r), "abcdefghijklmnopqrstuvwxyz0123456789!#$%&*-+.^_`|~") != true {
+			return false
+		}
+
+	}
+
+	return true
 }
