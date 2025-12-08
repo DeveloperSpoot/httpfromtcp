@@ -37,6 +37,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	request := new(Request)
 
 	request.ParserState = requestInialized
+	request.Headers = make(headers.Headers)
 
 	for request.ParserState != requestDone {
 
@@ -72,28 +73,42 @@ func (request *Request) parse(data []byte) (int, error) {
 		return 0, errors.New("Attetmped to parse request that is done.")
 	}
 
-	if request.ParserState > requestParsingHeaders {
-		return 0, errors.New("Attetmped to parse request at an unknown state")
+	switch request.ParserState {
+	case requestDone:
+		return 0, errors.New("Attempted to parse request that is done.")
+
+	case requestInialized:
+		idx, requestLine, err := parseRequestLine(data)
+
+		if err == nil && idx == 0 && requestLine == nil {
+
+			return 0, nil
+		}
+
+		if err != nil {
+			return 0, err
+		}
+
+		request.RequestLine = *requestLine
+		request.ParserState = requestParsingHeaders
+		return idx, nil
+
+	case requestParsingHeaders:
+		idx, done, err := request.Headers.Parse(data)
+		if err != nil {
+			return 0, err
+		}
+
+		if done {
+			request.ParserState = requestDone
+			return idx, nil
+		}
+		return idx, nil
+
+	default:
+		return 0, errors.New("Attempted To Parse During Unknown Parser State.")
+
 	}
-
-	idx, requestLine, err := parseRequestLine(data)
-
-	if err == nil && idx == 0 && requestLine == nil {
-
-		return 0, nil
-	}
-
-	if err != nil {
-		return 0, err
-	}
-
-	request.RequestLine = *requestLine
-	request.ParserState = requestParsingHeaders
-
-	//TODO: Add switch case for Parser State.
-	//TODO: Parse Through all headers.
-
-	return 0, nil
 }
 
 func parseRequestLine(data []byte) (int, *RequestLine, error) {

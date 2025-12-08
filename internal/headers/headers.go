@@ -3,6 +3,7 @@ package headers
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -23,16 +24,18 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	}
 
 	//End of headers, return proper data
-	if idx == 0 {
+	if idx == 0 || idx == 1 {
 		return len(data), true, nil
 	}
 
-	idxColon := bytes.Index(data, []byte(":"))
+	vdata := data[:idx]
 
-	fieldName := strings.ToLower(string(data[:idxColon]))
+	idxColon := bytes.Index(vdata, []byte(":"))
 
-	fieldValue := string(data[1+idxColon:])
+	fieldName := strings.ToLower(string(vdata[:idxColon]))
 
+	fieldValue := string(vdata[1+idxColon:])
+	fmt.Println(fieldValue, "|")
 	idxSpace := strings.LastIndex(fieldName, " ")
 
 	if idxSpace == len(fieldName)-1 {
@@ -58,8 +61,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		h[fieldName] = fieldValue
 	}
 
-	//WARN: Boot.Dev has this set not to include the last two bytes or the last crlf. I included it as it's techincally bytes consumed.
-	return len(data), false, nil
+	return len(vdata) + 1, false, nil
 }
 
 func isValidName(s string) bool {

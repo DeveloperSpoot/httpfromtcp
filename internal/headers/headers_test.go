@@ -15,7 +15,7 @@ func TestHeadersParse(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, headers)
 	assert.Equal(t, "localhost:42069", headers["host"])
-	assert.Equal(t, 25, n)
+	assert.Equal(t, 22, n)
 	assert.False(t, done)
 
 	// Test: Valid single header with multiple values
