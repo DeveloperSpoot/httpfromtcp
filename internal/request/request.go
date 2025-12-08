@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"strings"
+
+	"github.com/DeveloperSpoot/httpfromtcp/internal/headers"
 )
 
 type RequestLine struct {
@@ -16,11 +18,13 @@ type RequestLine struct {
 type Request struct {
 	RequestLine RequestLine
 	ParserState int
+	Headers     headers.Headers
 }
 
 const (
 	requestInialized int = iota
 	requestDone
+	requestParsingHeaders
 )
 
 const bufferSize int = 8
@@ -68,7 +72,7 @@ func (request *Request) parse(data []byte) (int, error) {
 		return 0, errors.New("Attetmped to parse request that is done.")
 	}
 
-	if request.ParserState != requestInialized {
+	if request.ParserState > requestParsingHeaders {
 		return 0, errors.New("Attetmped to parse request at an unknown state")
 	}
 
@@ -84,7 +88,10 @@ func (request *Request) parse(data []byte) (int, error) {
 	}
 
 	request.RequestLine = *requestLine
-	request.ParserState = requestDone
+	request.ParserState = requestParsingHeaders
+
+	//TODO: Add switch case for Parser State.
+	//TODO: Parse Through all headers.
 
 	return 0, nil
 }
