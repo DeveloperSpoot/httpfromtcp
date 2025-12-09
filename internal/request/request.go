@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/DeveloperSpoot/httpfromtcp/internal/headers"
@@ -19,12 +20,15 @@ type Request struct {
 	RequestLine RequestLine
 	ParserState int
 	Headers     headers.Headers
+	Body string
 }
 
 const (
 	requestInialized int = iota
 	requestDone
 	requestParsingHeaders
+	requestCheckingBody
+	requestParsingBody
 )
 
 const bufferSize int = 8
@@ -50,12 +54,16 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		bytesRead, readErr := reader.Read(buff[readToIndex:])
 
 		if bytesRead == 0 && errors.Is(readErr, io.EOF) {
+			if(request.ParserState == requestParsingBody){
+				return nil, errors.New("Body content is less than reported content-length")
+			}
+
 			request.ParserState = requestDone
 			break
 		}
 
 		readToIndex += bytesRead
-
+	
 		parsed, err := request.parse(buff[:readToIndex])
 		if err != nil {
 			return nil, errors.New("Error occured while parsing: " + err.Error())
@@ -100,13 +108,48 @@ func (request *Request) parse(data []byte) (int, error) {
 		}
 
 		if done {
-			request.ParserState = requestDone
+			request.ParserState = requestCheckingBody
 			return idx, nil
 		}
 		return idx, nil
 
+	case requestCheckingBody:
+			if request.Headers["content-length"] == "" {
+			request.ParserState = requestDone
+			return 0, nil
+		}
+
+		request.ParserState = requestParsingBody
+		return 0, nil
+
+	case requestParsingBody:
+		if request.Headers["content-length"] == "" {
+			request.ParserState = requestDone
+			return 0, nil
+		}
+
+		request.ParserState = requestParsingBody
+
+		leng, err := strconv.ParseInt(request.Headers["content-length"], 0, 0)
+
+		if err != nil {
+			return 0, err
+		}
+		request.Body += string(data)
+
+		if len(request.Body) > int(leng){
+			return 0, errors.New("Content-Length does not match the body length.")
+		}
+
+		if len(request.Body) < int(leng){
+			return len(data), nil
+		}
+
+		request.ParserState = requestDone
+		return 0, nil
+
 	default:
-		return 0, errors.New("Attempted To Parse During Unknown Parser State.")
+		return 0, errors.New("Attempted To Parse During Unknown Parser State")
 
 	}
 }

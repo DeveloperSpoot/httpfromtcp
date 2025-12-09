@@ -24,7 +24,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 	//End of headers, return proper data
 	if idx == 0 || idx == 1 {
-		return len(data), true, nil
+		return len(data[:idx])+2, true, nil
 	}
 
 	vdata := data[:idx]
