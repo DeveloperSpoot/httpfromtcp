@@ -21,7 +21,7 @@ type Request struct {
 	RequestLine RequestLine
 	ParserState int
 	Headers     headers.Headers
-	Body string
+	Body []byte
 }
 
 const (
@@ -130,7 +130,7 @@ func (request *Request) parse(data []byte) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		request.Body += string(data)
+		request.Body = append(request.Body, data...)
 
 		if len(request.Body) > int(leng){
 			return 0, errors.New("Content-Length does not match the body length.")
