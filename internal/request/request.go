@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -53,7 +54,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 		bytesRead, readErr := reader.Read(buff[readToIndex:])
 
-		if bytesRead == 0 && errors.Is(readErr, io.EOF) {
+		if bytesRead == 0 && errors.Is(readErr, io.EOF) && readToIndex == 0{
 			if(request.ParserState == requestParsingBody){
 				return nil, errors.New("Body content is less than reported content-length")
 			}
@@ -61,9 +62,9 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			request.ParserState = requestDone
 			break
 		}
-
+		
 		readToIndex += bytesRead
-	
+		
 		parsed, err := request.parse(buff[:readToIndex])
 		if err != nil {
 			return nil, errors.New("Error occured while parsing: " + err.Error())
@@ -115,7 +116,7 @@ func (request *Request) parse(data []byte) (int, error) {
 
 	case requestCheckingBody:
 			if request.Headers["content-length"] == "" {
-			request.ParserState = requestDone
+				request.ParserState = requestDone
 			return 0, nil
 		}
 
@@ -123,12 +124,6 @@ func (request *Request) parse(data []byte) (int, error) {
 		return 0, nil
 
 	case requestParsingBody:
-		if request.Headers["content-length"] == "" {
-			request.ParserState = requestDone
-			return 0, nil
-		}
-
-		request.ParserState = requestParsingBody
 
 		leng, err := strconv.ParseInt(request.Headers["content-length"], 0, 0)
 
@@ -146,6 +141,8 @@ func (request *Request) parse(data []byte) (int, error) {
 		}
 
 		request.ParserState = requestDone
+		log.Println("<><><><>")
+		log.Println(request.Body)
 		return 0, nil
 
 	default:
