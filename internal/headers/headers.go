@@ -3,7 +3,6 @@ package headers
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -35,7 +34,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	fieldName := strings.ToLower(string(vdata[:idxColon]))
 
 	fieldValue := string(vdata[1+idxColon:])
-	fmt.Println(fieldValue, "|")
+
 	idxSpace := strings.LastIndex(fieldName, " ")
 
 	if idxSpace == len(fieldName)-1 {
