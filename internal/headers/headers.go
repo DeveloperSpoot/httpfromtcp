@@ -15,6 +15,24 @@ type Headers map[string]string
 
 const crlf = "\r\n"
 
+func NewHeaders() Headers {
+	return make(Headers)
+}
+
+func (h Headers) SetHeader(name string, value string) error {
+	name = strings.ToLower(name)
+
+	if isValidName(name) == false {
+		return errors.New("Filed-Name contains invalid characters.")
+	}
+
+	name = strings.TrimSpace(name)
+
+	h[name] = value
+
+	return nil
+}
+
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	idx := bytes.Index(data, []byte(crlf))
 
@@ -24,7 +42,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 	//End of headers, return proper data
 	if idx == 0 || idx == 1 {
-		return len(data[:idx])+2, true, nil
+		return len(data[:idx]) + 2, true, nil
 	}
 
 	vdata := data[:idx]

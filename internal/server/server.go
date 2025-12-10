@@ -1,9 +1,11 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net"
-	"strconv"
+
+	"github.com/DeveloperSpoot/httpfromtcp/internal/response"
 )
 
 type Server struct {
@@ -17,8 +19,7 @@ const (
 )
 
 func Serve(port int) (*Server, error) {
-	addr := ":" + strconv.Itoa(port)
-	ln, err := net.Listen("tcp", addr)
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +59,13 @@ func (s *Server) listen() {
 
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
-	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!"))
-	return
+	//	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!"))
+
+	response.WriteStatusLine(conn, response.StatusOK)
+	header := response.GetDefualtHeaders(0)
+
+	err := response.WriteHeaders(conn, header)
+	if err != nil {
+		fmt.Printf("An error occured while writing headers: %v\n", err.Error())
+	}
 }
