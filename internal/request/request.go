@@ -54,6 +54,17 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		if rnrn != -1 && request.Headers["content-length"] == "" {
 			break
 		}
+
+		leng, _ := strconv.ParseInt(request.Headers["content-length"], 0, 0)
+
+		log.Println("Body legn ", leng)
+
+		if request.ParserState == requestCheckingBody && readToIndex == int(leng) {
+			log.Println("AGHHGHHGHGHGHGHGHGHGH >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+			request.ParserState = requestParsingBody
+			request.parse(buff[:readToIndex])
+			break
+		}
 		log.Println(rnrn)
 		if readToIndex >= len(buff) && rnrn == -1 {
 			log.Println("^-_-^-_-^")
