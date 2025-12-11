@@ -18,16 +18,16 @@ type Server struct {
 }
 
 type HandlerError struct {
-	statusCode response.StatusCode
-	message    string
+	StatusCode response.StatusCode
+	Message    string
 }
 
-func (he HandlerError) Write(w io.Writer) {
+func (he HandlerError) write(w io.Writer) {
 
-	response.WriteStatusLine(w, he.statusCode)
-	head := response.GetDefualtHeaders(len(he.message))
+	response.WriteStatusLine(w, he.StatusCode)
+	head := response.GetDefualtHeaders(len(he.Message))
 	response.WriteHeaders(w, head)
-	w.Write([]byte(he.message))
+	w.Write([]byte(he.Message))
 }
 
 const (
@@ -79,17 +79,23 @@ func (s *Server) listen() {
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 	//	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!"))
-
+	log.Println("Stated Server handle. \n")
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
 		fmt.Printf("An error occured while reading request: %s\n", err.Error())
+		log.Println("ERROR")
 	}
+
+	log.Println("Request secured.")
+	log.Println(req.RequestLine.RequestTarget)
 
 	buff := bytes.NewBuffer([]byte{})
 	handlerErr := s.handler(buff, req)
 
+	log.Println("Handler handled\n")
+
 	if handlerErr != nil {
-		handlerErr.Write(conn)
+		handlerErr.write(conn)
 		return
 	}
 

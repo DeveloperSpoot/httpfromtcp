@@ -3,6 +3,7 @@ package headers
 import (
 	"bytes"
 	"errors"
+	"log"
 	"strings"
 )
 
@@ -14,6 +15,7 @@ type Headers map[string]string
 // WHERE \r\n\r\n is the end of headers.
 
 const crlf = "\r\n"
+const rnrn = "\r\n\r\n"
 
 func NewHeaders() Headers {
 	return make(Headers)
@@ -35,13 +37,19 @@ func (h Headers) SetHeader(name string, value string) error {
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	idx := bytes.Index(data, []byte(crlf))
+	iDX := bytes.Index(data, []byte(rnrn))
+
+	log.Println("HEADERS PARSE")
+	log.Println("IDEX: ", iDX, "ID:", idx)
 
 	if idx == -1 {
+		log.Println("HP HP HP Returning")
 		return 0, false, nil
 	}
 
 	//End of headers, return proper data
 	if idx == 0 || idx == 1 {
+		log.Println("HP HP HP END END END END")
 		return len(data[:idx]) + 2, true, nil
 	}
 
@@ -76,6 +84,12 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		h[fieldName] = h[fieldName] + ", " + fieldValue
 	} else {
 		h[fieldName] = fieldValue
+	}
+
+	log.Println("HP HP RETURN RETURN RETURN")
+	log.Println("FN: ", fieldName, "\nFV: ", fieldValue)
+	if iDX != -1 {
+		log.Println(string(data[:iDX]), data[:iDX])
 	}
 
 	return len(vdata) + 1, false, nil

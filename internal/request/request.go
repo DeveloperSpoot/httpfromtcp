@@ -21,7 +21,7 @@ type Request struct {
 	RequestLine RequestLine
 	ParserState int
 	Headers     headers.Headers
-	Body []byte
+	Body        []byte
 }
 
 const (
@@ -36,6 +36,7 @@ const bufferSize int = 8
 const crlf string = "\r\n"
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
+	log.Println("REQUEST READER READING")
 	buff := make([]byte, bufferSize, bufferSize)
 	readToIndex := 0
 
@@ -46,25 +47,44 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 	for request.ParserState != requestDone {
 
-		if readToIndex >= len(buff) {
+		log.Println("REQUEST Reading: ", readToIndex)
+
+		rnrn := bytes.Index(buff, []byte("\r\n\r\n"))
+
+		if rnrn != -1 && request.Headers["content-length"] == "" {
+			break
+		}
+		log.Println(rnrn)
+		if readToIndex >= len(buff) && rnrn == -1 {
+			log.Println("^-_-^-_-^")
 			newBuff := make([]byte, len(buff)*2)
 			copy(newBuff, buff)
 			buff = newBuff
 		}
 
+		log.Println("new buff", buff[readToIndex:])
+		log.Println("<----------------------->\n", request.ParserState)
+		//FIXME: reader.Read() blocks here. Culrpit may be \r\n\r\n not being found.
 		bytesRead, readErr := reader.Read(buff[readToIndex:])
 
-		if bytesRead == 0 && errors.Is(readErr, io.EOF) && readToIndex == 0{
-			if(request.ParserState == requestParsingBody){
+		log.Println(bytesRead)
+		log.Println("<><><><> Reader Error? ", readErr)
+		log.Println("loop moving ")
+
+		if bytesRead == 0 && errors.Is(readErr, io.EOF) && readToIndex == 0 {
+			log.Println("ParsingBody")
+			if request.ParserState == requestParsingBody {
 				return nil, errors.New("Body content is less than reported content-length")
 			}
-
+			log.Println("Request read done, status set to done")
 			request.ParserState = requestDone
 			break
 		}
-		
+
+		log.Println("Attempting To Parse again...")
+
 		readToIndex += bytesRead
-		
+
 		parsed, err := request.parse(buff[:readToIndex])
 		if err != nil {
 			return nil, errors.New("Error occured while parsing: " + err.Error())
@@ -74,6 +94,8 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		readToIndex -= parsed
 	}
 
+	log.Println("REQUEST READING COMPLETE")
+
 	return request, nil
 }
 
@@ -82,12 +104,16 @@ func (request *Request) parse(data []byte) (int, error) {
 		return 0, errors.New("Attetmped to parse request that is done.")
 	}
 
+	log.Println("<<<PARSER STATE>>> ", request.ParserState)
+
 	switch request.ParserState {
 	case requestDone:
 		return 0, errors.New("Attempted to parse request that is done.")
 
 	case requestInialized:
 		idx, requestLine, err := parseRequestLine(data)
+
+		log.Println("REQUEST PARSER parsing Request Line")
 
 		if err == nil && idx == 0 && requestLine == nil {
 
@@ -98,25 +124,33 @@ func (request *Request) parse(data []byte) (int, error) {
 			return 0, err
 		}
 
+		log.Println("RQUEST PARSER Request Line COMPLETEE")
+
 		request.RequestLine = *requestLine
 		request.ParserState = requestParsingHeaders
 		return idx, nil
 
 	case requestParsingHeaders:
 		idx, done, err := request.Headers.Parse(data)
+		log.Println("REQUEST PARSER parsing headers")
 		if err != nil {
+			log.Println("<ERR> <ERR> <ERR> REQUEST PARSER Header ERROR <ERR> <ERR> <ERR>")
 			return 0, err
 		}
 
 		if done {
+			log.Println("REQUEST PARSER parsing headers COMPELTE")
 			request.ParserState = requestCheckingBody
 			return idx, nil
 		}
+
+		log.Println("headers return", idx)
 		return idx, nil
 
 	case requestCheckingBody:
-			if request.Headers["content-length"] == "" {
-				request.ParserState = requestDone
+		log.Println("RQUEST checking body")
+		if request.Headers["content-length"] == "" {
+			request.ParserState = requestDone
 			return 0, nil
 		}
 
@@ -132,11 +166,11 @@ func (request *Request) parse(data []byte) (int, error) {
 		}
 		request.Body = append(request.Body, data...)
 
-		if len(request.Body) > int(leng){
+		if len(request.Body) > int(leng) {
 			return 0, errors.New("Content-Length does not match the body length.")
 		}
 
-		if len(request.Body) < int(leng){
+		if len(request.Body) < int(leng) {
 			return len(data), nil
 		}
 
