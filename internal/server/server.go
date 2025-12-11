@@ -79,20 +79,14 @@ func (s *Server) listen() {
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 	//	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!"))
-	log.Println("Stated Server handle. \n")
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
 		fmt.Printf("An error occured while reading request: %s\n", err.Error())
 		log.Println("ERROR")
 	}
 
-	log.Println("Request secured.")
-	log.Println(req.RequestLine.RequestTarget)
-
 	buff := bytes.NewBuffer([]byte{})
 	handlerErr := s.handler(buff, req)
-
-	log.Println("Handler handled\n")
 
 	if handlerErr != nil {
 		handlerErr.write(conn)
