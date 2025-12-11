@@ -2,15 +2,31 @@ package server
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
 
+	"github.com/DeveloperSpoot/httpfromtcp/internal/request"
 	"github.com/DeveloperSpoot/httpfromtcp/internal/response"
 )
 
 type Server struct {
 	state    int
 	listener net.Listener
+	handler  Handler
+}
+
+type HandlerError struct {
+	statusCode response.StatusCode
+	message    string
+}
+
+func (he HandlerError) Write(w io.Writer) {
+
+	response.WriteStatusLine(w, he.statusCode)
+	head := response.GetDefualtHeaders(len(he.message))
+	response.WriteHeaders(w, head)
+	w.Write([]byte(he.message))
 }
 
 const (
@@ -18,13 +34,15 @@ const (
 	serverListening
 )
 
-func Serve(port int) (*Server, error) {
+type Handler func(w io.Writer, req *request.Request) *HandlerError
+
+func Serve(port int, hand Handler) (*Server, error) {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
 
-	serv := Server{listener: ln, state: serverListening}
+	serv := Server{listener: ln, state: serverListening, handler: hand}
 
 	go serv.listen()
 
@@ -60,6 +78,8 @@ func (s *Server) listen() {
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 	//	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!"))
+
+	req, err := request.RequestFromReader(conn)
 
 	response.WriteStatusLine(conn, response.StatusOK)
 	header := response.GetDefualtHeaders(0)
