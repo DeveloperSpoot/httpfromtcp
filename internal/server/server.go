@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -80,12 +81,30 @@ func (s *Server) handle(conn net.Conn) {
 	//	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!"))
 
 	req, err := request.RequestFromReader(conn)
-
-	response.WriteStatusLine(conn, response.StatusOK)
-	header := response.GetDefualtHeaders(0)
-
-	err := response.WriteHeaders(conn, header)
 	if err != nil {
-		fmt.Printf("An error occured while writing headers: %v\n", err.Error())
+		fmt.Printf("An error occured while reading request: %s\n", err.Error())
 	}
+
+	buff := bytes.NewBuffer([]byte{})
+	handlerErr := s.handler(buff, req)
+
+	if handlerErr != nil {
+		handlerErr.Write(conn)
+		return
+	}
+
+	err = response.WriteStatusLine(conn, response.StatusOK)
+	if err != nil {
+		fmt.Printf("An error occured writing status line: %s\n", err.Error())
+		return
+	}
+	header := response.GetDefualtHeaders(len(buff.Bytes()))
+
+	err = response.WriteHeaders(conn, header)
+	if err != nil {
+		fmt.Printf("An error occured while writing headers: %s\n", err.Error())
+		return
+	}
+
+	conn.Write(buff.Bytes())
 }
