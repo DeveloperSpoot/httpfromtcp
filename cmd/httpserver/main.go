@@ -1,12 +1,13 @@
 package main
 
 import (
-	"io"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/DeveloperSpoot/httpfromtcp/internal/headers"
 	"github.com/DeveloperSpoot/httpfromtcp/internal/request"
 	"github.com/DeveloperSpoot/httpfromtcp/internal/response"
 	"github.com/DeveloperSpoot/httpfromtcp/internal/server"
@@ -14,16 +15,69 @@ import (
 
 const port = 42069
 
-func handler(w io.Writer, req *request.Request) *server.HandlerError {
-	log.Print("Handler Function Called \n")
-	log.Print(req.RequestLine.RequestTarget)
+func handler(w *response.Writer, req *request.Request) *server.HandlerError {
+	head := headers.NewHeaders()
+	head.GetDefualtHeaders(0)
+	head.SetHeader("content-type", "text/html")
+
 	switch req.RequestLine.RequestTarget {
 	case "/yourproblem":
-		return &server.HandlerError{StatusCode: response.StatusBadRequest, Message: "Your problem is not my problem\n"}
+		body := `
+		<html>
+ 		 <head>
+		    <title>400</title>
+		  </head>
+ 		 <body>
+		    <h1>Bad Request</h1>
+		    <p>Your request honestly kinda sucked.</p>
+		 </body>
+		</html>
+		`
+		w.WriteStatusLine(response.StatusBadRequest)
+
+		head.SetHeader("content-length", fmt.Sprintf("%v", len(body)))
+		w.WriteHeaders(head)
+
+		w.WriteBody([]byte(body))
+
 	case "/myproblem":
-		return &server.HandlerError{StatusCode: response.StatusError, Message: "Woopsie, my bad\n"}
+		body := `
+		<html>
+ 		 <head>
+		    <title>500 Internal Server Error</title>
+		  </head>
+ 		 <body>
+		    <h1>Internal Server Error</h1>
+		    <p>Okay, you know what? This one is on me.</p>
+		 </body>
+		</html>
+		`
+		w.WriteStatusLine(response.StatusError)
+
+		head.SetHeader("content-length", fmt.Sprintf("%v", len(body)))
+		w.WriteHeaders(head)
+
+		w.WriteBody([]byte(body))
+
 	default:
-		w.Write([]byte("All good, frfr\n"))
+		body := `
+		<html>
+ 		 <head>
+		    <title>200 OK</title>
+		  </head>
+ 		 <body>
+		    <h1>Success!</h1>
+		    <p>Your request was an absolute banger.</p>
+		 </body>
+		</html>
+		`
+		w.WriteStatusLine(response.StatusOK)
+
+		head.SetHeader("content-length", fmt.Sprintf("%v", len(body)))
+		w.WriteHeaders(head)
+
+		w.WriteBody([]byte(body))
+
 	}
 
 	return nil

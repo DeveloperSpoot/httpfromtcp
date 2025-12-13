@@ -3,6 +3,7 @@ package headers
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 )
@@ -33,6 +34,13 @@ func (h Headers) SetHeader(name string, value string) error {
 	h[name] = value
 
 	return nil
+}
+
+func (head Headers) GetDefualtHeaders(contentLen int) {
+
+	head.SetHeader("Content-Length", fmt.Sprintf("%v", contentLen))
+	head.SetHeader("Connection", "close")
+	head.SetHeader("Content-Type", "text/plain")
 }
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {

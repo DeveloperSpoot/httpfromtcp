@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -35,7 +34,7 @@ const (
 	serverListening
 )
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(w *response.Writer, req *request.Request) *HandlerError
 
 func Serve(port int, hand Handler) (*Server, error) {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -82,29 +81,15 @@ func (s *Server) handle(conn net.Conn) {
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
 		fmt.Printf("An error occured while reading request: %s\n", err.Error())
-		log.Println("ERROR")
-	}
 
-	buff := bytes.NewBuffer([]byte{})
-	handlerErr := s.handler(buff, req)
+		handErr := HandlerError{}
+		handErr.StatusCode = response.StatusBadRequest
+		handErr.Message = "Internal error while processing request."
 
-	if handlerErr != nil {
-		handlerErr.write(conn)
+		handErr.write(conn)
 		return
 	}
 
-	err = response.WriteStatusLine(conn, response.StatusOK)
-	if err != nil {
-		fmt.Printf("An error occured writing status line: %s\n", err.Error())
-		return
-	}
-	header := response.GetDefualtHeaders(len(buff.Bytes()))
-
-	err = response.WriteHeaders(conn, header)
-	if err != nil {
-		fmt.Printf("An error occured while writing headers: %s\n", err.Error())
-		return
-	}
-
-	conn.Write(buff.Bytes())
+	writer := response.NewWriter(conn)
+	s.handler(writer, req)
 }
