@@ -1,11 +1,15 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"net/http"
+	"strings"
 
+	"github.com/DeveloperSpoot/httpfromtcp/internal/headers"
 	"github.com/DeveloperSpoot/httpfromtcp/internal/request"
 	"github.com/DeveloperSpoot/httpfromtcp/internal/response"
 )
@@ -75,6 +79,74 @@ func (s *Server) listen() {
 	}
 }
 
+var endOfRead = "\r\n\r\n"
+
+func proxyHandler(w io.Writer, req *request.Request) {
+	proxyTarget := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin")
+
+	resp, err := http.Get("https://httpbin.org" + proxyTarget)
+	if err != nil {
+		handErr := HandlerError{}
+		handErr.StatusCode = response.StatusError
+		handErr.Message = "Internal error while processing."
+		handErr.write(w)
+
+		log.Fatalf("An error occured while handling proxy: %s\n", err.Error())
+		return
+	}
+
+	writer := response.NewWriter(w)
+
+	err = writer.WriteStatusLine(response.StatusOK)
+	if err != nil {
+		log.Fatalf("An error occured while writing status line: %s\n", err.Error())
+		return
+	}
+
+	head := headers.NewHeaders()
+	head.SetHeader("content-type", "text/plain")
+	head.SetHeader("transfer-encoding", "chunked")
+
+	err = writer.WriteHeaders(head)
+	if err != nil {
+		log.Fatalf("An error occured while writing proxy headers: %s\n", err.Error())
+		return
+	}
+
+	for {
+		buff := make([]byte, 1024, 1024)
+		idx, err := resp.Body.Read(buff)
+
+		if err == io.EOF {
+			return
+		}
+
+		if err != nil {
+			log.Fatalf("An error occured while reading proxy body: %s\n", err.Error())
+			return
+		}
+
+		_, err = writer.WriteEncodingChunk(buff[:idx])
+		if err != nil {
+			log.Fatalf("An error occured while writing proxy body: %s\n", err.Error())
+			return
+		}
+
+		if bytes.Index(buff, []byte(endOfRead)) != -1 {
+			break
+		}
+
+	}
+
+	_, err = writer.WriteChunkedBodyDone()
+	if err != nil {
+		log.Fatalf("An error occured while writing encoding ending: %s\n", err.Error())
+		return
+	}
+
+	return
+}
+
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 	//	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!"))
@@ -87,6 +159,11 @@ func (s *Server) handle(conn net.Conn) {
 		handErr.Message = "Internal error while processing request."
 
 		handErr.write(conn)
+		return
+	}
+
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin") {
+		proxyHandler(conn, req)
 		return
 	}
 
