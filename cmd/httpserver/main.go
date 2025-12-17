@@ -168,12 +168,11 @@ func proxyHandler(w *response.Writer, req *request.Request) {
 	trailers.SetHeader("x-content-length", readStr)
 	trailers.SetHeader("x-content-sha256", sha)
 
-	log.Println(trailers)
-
-	log.Println(fmt.Sprintf("%v", readIdx))
-	log.Println(fmt.Sprintf("%x", sha256.Sum256(buff[:readIdx])))
-
-	w.WriteBody([]byte("x-content-length: " + readStr + "\r\nx-content-sha256: " + sha + "\r\n\r\n"))
+	err = w.WriteHeaders(trailers)
+	if err != nil {
+		log.Fatalf("An error occured while writing trailers: %s\n", err.Error())
+		return
+	}
 
 	return
 }

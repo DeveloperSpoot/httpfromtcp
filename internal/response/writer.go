@@ -36,9 +36,7 @@ func (w *Writer) WriteTrailers(head headers.Headers) error {
 		return errors.New("Ensure to write the response in order! Body must be written before trailers can be written.")
 	}
 
-	err := WriteHeaders(w.output, head)
-
-	return err
+	return WriteHeaders(w.output, head)
 }
 
 func (w *Writer) WriteEncodingChunk(buff []byte) (int, error) {
