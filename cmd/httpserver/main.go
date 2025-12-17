@@ -30,6 +30,11 @@ func handler(w *response.Writer, req *request.Request) *server.HandlerError {
 		return nil
 	}
 
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/video") {
+		proxyVideoHandler(w, req)
+		return nil
+	}
+
 	switch req.RequestLine.RequestTarget {
 	case "/yourproblem":
 		body := `
@@ -91,6 +96,26 @@ func handler(w *response.Writer, req *request.Request) *server.HandlerError {
 	}
 
 	return nil
+}
+
+func proxyVideoHandler(w *response.Writer, req *request.Request) {
+
+	vid, err := os.ReadFile("./assets/vim.mp4")
+	if err != nil {
+		w.WriteStatusLine(response.StatusError)
+		log.Fatalf("An error occured while acquring video: %s\n", err.Error())
+		return
+	}
+
+	head := headers.NewHeaders()
+	head.SetHeader("connection", "close")
+	head.SetHeader("content-type", "video/mp4")
+
+	w.WriteStatusLine(response.StatusOK)
+	w.WriteHeaders(head)
+
+	w.WriteBody(vid)
+
 }
 
 var endOfRead = "\r\n\r\n"
