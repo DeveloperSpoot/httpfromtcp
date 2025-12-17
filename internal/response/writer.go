@@ -20,6 +20,7 @@ const (
 	writerStatusLineDone
 	writerHeadersDone
 	writerBodyStarted
+	writerBodyDone
 )
 
 func NewWriter(w io.Writer) *Writer {
@@ -27,6 +28,17 @@ func NewWriter(w io.Writer) *Writer {
 		writerState: writerNotStarted,
 		output:      w,
 	}
+}
+
+func (w *Writer) WriteTrailers(head headers.Headers) error {
+
+	if w.writerState != writerBodyDone {
+		return errors.New("Ensure to write the response in order! Body must be written before trailers can be written.")
+	}
+
+	err := WriteHeaders(w.output, head)
+
+	return err
 }
 
 func (w *Writer) WriteEncodingChunk(buff []byte) (int, error) {
@@ -42,7 +54,7 @@ func (w *Writer) WriteEncodingChunk(buff []byte) (int, error) {
 
 	hexLen := []byte(fmt.Sprintf("%X", len(buff)) + "\r\n")
 
-	_, err := w.output.Write(hexLen)
+	hexIdx, err := w.output.Write(hexLen)
 	if err != nil {
 		return 0, err
 	}
@@ -52,12 +64,12 @@ func (w *Writer) WriteEncodingChunk(buff []byte) (int, error) {
 		return 0, err
 	}
 
-	_, err = w.output.Write([]byte("\r\n"))
+	rfIdx, err := w.output.Write([]byte("\r\n"))
 	if err != nil {
 		return 0, err
 	}
 
-	return bIdx, nil
+	return hexIdx + bIdx + rfIdx, nil
 
 }
 
@@ -66,12 +78,14 @@ func (w *Writer) WriteChunkedBodyDone() (int, error) {
 		return 0, errors.New("Ensure to write encoding response in order! Encoding Chunks must be written before sending done encoding.")
 	}
 
-	idx, err := w.output.Write([]byte("0\r\n\r\n"))
+	idx, err := w.output.Write([]byte("0\r\n"))
 	if err != nil {
 		return 0, err
 	}
 
-	return idx - 2, nil
+	w.writerState = writerBodyDone
+
+	return idx, nil
 }
 
 func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
